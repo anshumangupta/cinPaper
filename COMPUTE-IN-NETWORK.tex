@@ -1,0 +1,190 @@
+\documentclass[10pt,letter,twocolumn]{article}
+\usepackage{comment}
+\begin{document}
+
+\title{Compute-In-Network for Reducing Network Latencies and Costs}
+\author{Anshuman Gupta}
+\date{}
+
+\maketitle
+
+\textbf{Promise}: Datacenters will continue to provide increasingly cost-effective
+services through consolidation over internet accessible by cheap mobile devices.
+
+\textbf{Problem}: Remote computation at datacenters will put lower limits on physical
+network costs, such as energy, latency, bandwidth, etc. For example, even when video
+conferencing with a person in the next room, a slowdown in a distant network link can
+disrupt the communication. Moreover, the energy required by network packets to make
+a round-trip to the datacenter in this case is an unnecessary wastage.
+
+\textbf{Insight}: Enable in-network computation, preferably at the closest connecting
+node, to mitigate the network limits. This should result in reduced latencies, reduced
+energy consumptions, and reduction in network bandwidth requirements.
+
+\textbf{Solution}: We propose creating a framework to enable in-network computation.
+The framework spans from the internet access devices, to network routers, to the
+datacenters. Applications running on the internet access devices, such as smartphone,
+tablet, laptop, etc., send and receive packets over the internet. These packets
+contain information required for triggering computations in datacenters. It is the
+responsibility of internet routers to transport the packets between access devices
+and datacenters. However, in this framework, the intermediate internet routers
+intercept these packets to determine the computations that needs to be done for
+these packets at the datacenter. If sufficient resources, such as compute capability,
+code, data, etc., are available at the router itself, it performs those computations
+in-situ. It can then take the necessary next step for the packet, such as send the
+response back, notify the datacenter, notify another node on internet, etc. The
+datacenter as well as access devices are aware of the compute-in-network capability,
+but do not necessarily rely on it.
+
+\textbf{Components}: We give a description of the various components of the framework
+here along with their expected attributes for the framework. We present the current
+state of these components and possible directions to enhance these components to meet
+the framework requirements.
+\begin{itemize}
+\item \textit{Compute}: Network nodes must be capable of doing computations. Current
+network switches/routers feature limited compute capacity for routing, diagnostics,
+etc. However, these routers are not designed for executing generic application code.
+Therefore, these routers need to augmented with enhanced compute capability for
+enabling in-network computation. There are multiple approaches for this:
+\begin{itemize}
+\item \textit{General-Purpose Network Processors}: While current network routers and
+switches aren’t sufficiently capable, with the advent of Software Defined Network (SDN)
+and its rising popularity, network processors are expected to become increasingly
+capable in future networks providing an opportunity to easily augment them for compute
+in-network.
+\item \textit{Commodity Co-Processors}: We can enhance the existing network routers
+with commodity co-processors to enable in-network computation. There exists several
+compute co-processors in the market that promise high throughput and energy-efficiency,
+such as NVIDIA Tesla, Xeon Phi, Tile Gx, etc., which can be used to execute the
+application code; these architectures can be further optimized for executing in-network
+code.
+\item \textit{Specialized Co-Processors}: There is a lot of existing work for designing
+specialized co-processors that execute code kernels on dedicated ASICs to provide
+significantly higher performance and energy-efficiency. It is possible to design
+specialized network co-processors by extracting a kernel for datacenter application
+code to provide further reductions in network latency and energy.
+\end{itemize}
+\item \textit{Code}: The network nodes need to know the application code to be executed.
+Because of the vast codebase of all possible network applications, it is not feasible to
+store the code of every application inside every network node. These are a few approaches
+for solving this problem:
+\begin{itemize}
+\item \textit{Network Compute Library (NCL)}: While there is a tremendously large and
+ever-increasing application code base, there are algorithmic kernels reused across many
+applications. It is possible to extract a kernel of these algorithms into multiple dynamic
+shared libraries (.dll, .so etc.), which can be kept at network nodes at the disposal of
+network processors. Applications can be written using these libraries to enable in-network
+computation. The requests can contain markers that what functions of library have been
+executed already, and what functions remain.
+\item \textit{Packets with Embedded-Code}: Depending on the size of code to be executed
+in network, an application can inscribe the relevant code section in the network request
+itself. However, this can swell the request sizes and exacerbate the bandwidth and energy
+costs. As a result, the application needs to cleverly determine the scope of in-network
+computation to get a favorable tradeoff between increased costs due to code-embedding and
+increased savings due to in-network computation.
+\item \textit{Kernel ASICs}: Application code can be embedded into network processors (or
+co-processors) by using specialized ASICs. These ASICs can be accessed by application code
+either explicitly, i.e. by calling an associated signature, or implicitly, i.e. by matching
+the semantics of application code segment with semantics of the available ASICs.
+\end{itemize}
+\item \textit{Data}: The network node needs to obtain the data required as input for
+application code to enable in-network computation. While some of this data is already
+present in existing network request packets, there might exist other data required to
+complete the computation that is not present in the network packets. There are multiple
+approaches to solve this problem:
+\begin{itemize}
+\item \textit{Storage Cache}: Network nodes can be augmented with storage, which can act
+as a cache for incoming data. The application code can look for the required data, not
+present in the network packet, in this network cache and complete the computation on a
+cache hit. We need to devise a global indexing (spanning space, time, and applications)
+to enable this global cache lookup. Moreover, since only limited storage can be made
+available, clever algorithms are required to determine which data to retain and which to
+evict when the storage is full.
+\item \textit{Waiting Buffers}: An application can send packets explicitly requesting
+in-network processing along with the required data. The packets can contain information
+about the source of data. If the router expects to receive data from this source, it can
+temporarily retain the packet in some waiting buffers. Otherwise it can forward the packet
+to the stream that it estimates to be the closest to the source. If the packet is retained
+in the waiting buffers for longer than an expiration period, it is forwarded to an
+appropriate stream.
+\item \textit{In-Network Data Requests}: If a router deems that the source of data is nearby
+and there is a favorable tradeoff in retrieving the data for this packet’s computation as
+well as future computations, the router sends an in-network data request to the source,
+performs compute on current packet, and retains the data for possible future in-network
+computation requests.
+\end{itemize}
+\end{itemize}
+
+\textbf{Salient Features}: We expect to have the following salient features in the framework,
+which will not only determine the overall framework design, but will also trickle down to
+individual components of the framework:
+\begin{itemize}
+\item \textit{Programmability}: The framework should not increase programming complexity by
+putting the burden of code-execution-point determination on the programmer, and should keep
+the in-network computation functionality invisible to the end-user by default. However, to
+enable an application programmer to exploit the improvement in response time, this
+functionality should be exposed using a well-defined API.
+\item \textit{Composability}: The framework should support modularity, i.e. the framework
+components should have well-defined interfaces (or API) that allow straightforward composition
+of framework components with legacy components. Moreover, as the framework evolves, the
+components will become increasingly heterogeneous. The framework modularity should enable
+elegant composition of heterogeneous components as well.
+\item \textit{Extensibility}: Networks are not static and are continuously growing. Therefore,
+the framework design should be scalable in terms of latency, energy, and bandwidth.
+\item \textit{Flexibility}: The framework should clearly distinguish between data-plane and
+control-plane. Moreover, while the data-plane can be embedded in hardware for reducing latency
+and energy, control-plane must remain in software and should have small footprint in order to
+enable fast policy changes.
+\end{itemize}
+
+\begin{comment}
+Project Stages: We propose implementing the project in the following stages:
+First Iteration: For the first cut, we propose using a software library for in-network computation.
+Library created for in-network computation
+Application front-end and back-end written using the library
+Router intercepts the data packets sent from application executions
+General purpose processors and co-processors used for compute
+Storage Cache created on the router
+Second Iteration: For second generation, we enhance the compiler for explicit use of in-network compute capability using an API.
+Create an API to expose the in-network compute functionality
+Extend compiler (gcc) to generate in-network computation capable binaries
+Router intercepts embedded-code packets sent from application executions
+General purpose processors and co-processors used for compute, and storage-cache for data
+Third Iteration: For third generation, we focus on data optimizations, such as waiting buffers and in-network data requests.
+Router intercepts embedded-code packets sent from application executions
+General purpose processors and co-processors used for compute
+Storage Cache enhanced by waiting buffers and in-network requests for data.
+Fourth Iteration: For fourth generation, we focus on hardware to extract benefits of specialization.
+Generate network traces from real systems.
+Analyze in-network compute patterns.
+Create specialized network processors or co-processors based on library hotspots and in-network compute patterns.
+Use trace based simulation to estimate the benefits of specialization.
+Fifth Iteration: For fifth generation, we focus on improving the gains from specialization by recognizing missed opportunities.
+Implement an offline semantic checker, which checks for matching semantics across the library functions.
+Implement an online hook that runs the non-supported library functions on available ASICs on the specialized network processor (or co-processor), if matched semantically.
+\end{comment}
+
+\begin{comment}
+Research Problems: Following are the research topics within the scope of this proposal:
+First Iteration: Software library for in-network computation.
+Latency, energy, and bandwidth benefits of in-network computation
+Cost-benefit tradeoffs for library coverage and size
+Routing policies to improve probability of in-network computation
+Storage cache management policies and mechanisms
+Second Iteration: API for explicit use of in-network compute capability.
+Cost-benefit tradeoffs of explicit usage of in-network computation through APIs
+Latency-bandwidth costs vs benefits of embedded-code packets
+Third Iteration: Data optimizations such as waiting buffers and in-network data requests.
+Cost-benefit tradeoffs of using waiting buffers
+Cost-benefit tradeoffs of using in-network data requests
+Fourth Iteration: Hardware specialization
+Detailed analysis of in-network compute patterns
+Library hotspot analysis 
+Specialized network processor architecture
+Fifth Iteration: Optimizing specialization.
+Effectiveness vs cost of offline semantic checker
+Cost-benefit analysis of online hook to run non-hardcoded library functions
+\end{comment}
+
+\end{document}
+
